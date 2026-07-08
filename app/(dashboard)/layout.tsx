@@ -1,6 +1,7 @@
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Header } from "@/components/dashboard/header";
 import { DashboardProviders } from "@/components/dashboard/providers";
+import { Toaster } from "@/components/ui/sonner";
 
 /**
  * Zajednički layout zaštićenih dashboard ekrana (Korak 0.8):
@@ -19,6 +20,7 @@ export default function DashboardLayout({
           <main className="flex-1 overflow-y-auto p-6">{children}</main>
         </div>
       </div>
+      <Toaster />
     </DashboardProviders>
   );
 }
