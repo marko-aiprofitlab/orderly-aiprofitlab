@@ -1,10 +1,8 @@
-import { UserButton } from "@clerk/nextjs";
 import { currentUser } from "@clerk/nextjs/server";
 
 /**
- * Privremeni placeholder zaštićene stranice — služi za verifikaciju da login
- * radi i da sign-out (UserButton) postoji. Pun dashboard sa sidebar-om,
- * KPI-jevima i live feed-om dolazi u kasnijim koracima (Faza 1).
+ * Dashboard — trenutno placeholder unutar novog skeleta (Korak 0.8).
+ * Pun sadržaj (KPI, live feed, tabela) dolazi u Fazi 1.
  */
 export default async function DashboardPage() {
   const user = await currentUser();
@@ -12,16 +10,13 @@ export default async function DashboardPage() {
     user?.firstName ?? user?.username ?? user?.emailAddresses[0]?.emailAddress;
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-6">
-      <div className="flex items-center gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">
-          Dobrodošao{greetingName ? `, ${greetingName}` : ""}
-        </h1>
-        <UserButton />
-      </div>
+    <div className="flex flex-col gap-2">
+      <h1 className="text-2xl font-bold tracking-tight">
+        Dobrodošao{greetingName ? `, ${greetingName}` : ""}
+      </h1>
       <p className="text-muted-foreground text-sm">
-        Dashboard — uskoro. (Korak 0.6: auth radi ✓)
+        Dashboard — uskoro. KPI-jevi, live feed i tabela dolaze u Fazi 1.
       </p>
-    </main>
+    </div>
   );
 }
