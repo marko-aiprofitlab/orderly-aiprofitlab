@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { toast } from "sonner";
-import { PlusIcon, PencilIcon, Trash2Icon } from "lucide-react";
+import { PlusIcon, PencilIcon, Trash2Icon, RefreshCwIcon } from "lucide-react";
 
 import type { SiteListItem } from "@/lib/types";
 import { PLATFORMS } from "@/lib/types";
@@ -41,6 +41,8 @@ export function SitesManager({ initialSites }: { initialSites: SiteListItem[] })
     null,
   );
   const [deleting, setDeleting] = React.useState(false);
+
+  const [syncingId, setSyncingId] = React.useState<string | null>(null);
 
   const refetch = React.useCallback(async () => {
     setLoading(true);
@@ -88,6 +90,49 @@ export function SitesManager({ initialSites }: { initialSites: SiteListItem[] })
       toast.error("Greška u komunikaciji sa serverom.");
     } finally {
       setDeleting(false);
+    }
+  }
+
+  /**
+   * Backfill jednog sajta: petlja preko strana (ruta vraća kursor `nextPage`)
+   * dok `done`, sa progres toast-om. Ograničeno na Woo sajtove sa kredencijalima.
+   */
+  async function runSync(site: SiteListItem) {
+    if (syncingId) return;
+    setSyncingId(site.id);
+    const toastId = toast.loading(`Sinhronizacija „${site.name}“…`);
+    let processed = 0;
+    let page = 1;
+    try {
+      for (;;) {
+        const res = await fetch(`/api/sync/woo/${site.id}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ page }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          toast.error(json.error ?? "Sinhronizacija nije uspela.", {
+            id: toastId,
+          });
+          return;
+        }
+        processed += json.processed ?? 0;
+        if (json.done || !json.nextPage) {
+          toast.success(`Gotovo: ${processed} porudžbina.`, { id: toastId });
+          break;
+        }
+        toast.loading(
+          `„${site.name}“: ${processed}/${json.total ?? "?"} porudžbina…`,
+          { id: toastId },
+        );
+        page = json.nextPage;
+      }
+      await refetch();
+    } catch {
+      toast.error("Greška u komunikaciji sa serverom.", { id: toastId });
+    } finally {
+      setSyncingId(null);
     }
   }
 
@@ -165,6 +210,23 @@ export function SitesManager({ initialSites }: { initialSites: SiteListItem[] })
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
+                      {site.platform === "woocommerce" &&
+                        site.active &&
+                        site.has_consumer_secret && (
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => runSync(site)}
+                            disabled={syncingId !== null}
+                            aria-label="Sinhronizuj porudžbine"
+                          >
+                            <RefreshCwIcon
+                              className={
+                                syncingId === site.id ? "animate-spin" : undefined
+                              }
+                            />
+                          </Button>
+                        )}
                       <Button
                         variant="ghost"
                         size="icon-sm"

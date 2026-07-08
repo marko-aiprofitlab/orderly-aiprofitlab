@@ -126,8 +126,64 @@ export async function upsertCustomer(
   return (data as { id: string }).id;
 }
 
+/**
+ * Upsert kupca BEZ diranja agregata (identity-only) — za backfill (Korak 1.4).
+ *
+ * Za razliku od `upsertCustomer` (koji inkrementira total_spent/order_count),
+ * ovde upisujemo samo identitet. Time re-run backfill-a ne duplira agregate;
+ * finalni tačan iznos daje `recomputeCustomerAggregates` na kraju sync-a.
+ * Novi kupci dobijaju default agregate iz baze (0), koje recompute ispravlja.
+ * Vraća `customer.id` ili null (ako nema email-a).
+ */
+export async function upsertCustomerIdentity(
+  admin: AdminClient,
+  customer: {
+    email: string;
+    name: string | null;
+    first_name: string | null;
+    last_name: string | null;
+  },
+): Promise<string | null> {
+  if (!customer.email) return null;
+
+  const { data, error } = await admin
+    .from("customers")
+    .upsert(
+      {
+        email: customer.email,
+        name: customer.name,
+        first_name: customer.first_name,
+        last_name: customer.last_name,
+      },
+      { onConflict: "email" },
+    )
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    throw new Error(
+      `upsertCustomerIdentity: ${error?.message ?? "nema vraćenog reda"}`,
+    );
+  }
+  return (data as { id: string }).id;
+}
+
+/**
+ * Iznova izračuna agregate SVIH kupaca (total_spent/order_count/first_order_at)
+ * iz `orders`, preko SQL RPC-a (migracija 002). Idempotentno — poziva se jednom
+ * na kraju backfill-a (kad je `done`). Rešava neatomičnost `upsertCustomer`.
+ */
+export async function recomputeCustomerAggregates(
+  admin: AdminClient,
+): Promise<void> {
+  const { error } = await admin.rpc("recompute_customer_aggregates");
+  if (error) {
+    throw new Error(`recomputeCustomerAggregates: ${error.message}`);
+  }
+}
+
 /** Poveži porudžbinu sa kupcem (orders.customer_id). Best-effort. */
-async function linkOrderCustomer(
+export async function linkOrderCustomer(
   admin: AdminClient,
   orderId: string,
   customerId: string,
