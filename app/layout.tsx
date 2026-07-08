@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 
 const geist = Geist({
@@ -22,11 +23,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="sr" className={`${geistMono.variable} h-full`}>
-      {/* Zlatno pravilo #11: geist.className na <body>, ne geist.variable. */}
-      <body className={`${geist.className} min-h-full antialiased`}>
-        {children}
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="sr" className={`${geistMono.variable} h-full`}>
+        {/* Zlatno pravilo #11: geist.className na <body>, ne geist.variable. */}
+        <body className={`${geist.className} min-h-full antialiased`}>
+          {children}
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
